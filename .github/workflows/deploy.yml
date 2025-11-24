@@ -1,35 +1,61 @@
-name: Deploy Ecommerce App
+name: Deploy Ecommerce Website
 
+# Trigger workflow on push to main branch
 on:
   push:
     branches:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+    # Step 1: Checkout the repository
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Login to Docker Hub
-      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+    # Step 2: Set up Docker Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
-    - name: Build Docker image
-      run: docker build -t <dockerhub-username>/ecommerce-site "./Ecommerce Website"
+    # Step 3: Login to Docker Hub
+    - name: Docker login
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Push Docker image
-      run: docker push ${{ secrets.DOCKER_USERNAME }}/ecommerce-site
+    # Step 4: Build Docker image and push
+    - name: Build and push Docker image
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/ecommerce-site:latest ./Ecommerce\ Website
+        docker push ${{ secrets.DOCKER_USERNAME }}/ecommerce-site:latest
 
+    # Step 5: Setup Terraform
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.7.5
+
+    # Step 6: Terraform init
     - name: Terraform Init
       working-directory: infra
       run: terraform init
 
+    # Step 7: Terraform plan
+    - name: Terraform Plan
+      working-directory: infra
+      run: terraform plan
+
+    # Step 8: Terraform apply
     - name: Terraform Apply
+      working-directory: infra
+      run: terraform apply -auto-approve
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ap-south-1
-      working-directory: infra
-      run: terraform apply -auto-approve
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
