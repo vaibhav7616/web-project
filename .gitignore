@@ -1,0 +1,8 @@
+# Terraform
+infra/.terraform/
+*.tfstate
+*.tfstate.backup
+*.zip
+
+# Docker
+*.tar
